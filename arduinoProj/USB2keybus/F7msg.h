@@ -22,7 +22,6 @@
 #define GET_NIBBLE(c)        ((uint8_t)(H2B(c)))
 #define GET_BOOL(b)          ((b) == '1' ? 1 : 0)
 
-#define F7_MSG(s)            (*((s)+0) == 'F' && *((s)+1) == '7')
 #define F7_MSG_SIZE          (48)
 
 #pragma pack(push,1)  // mesg struct needs 1 byte packing

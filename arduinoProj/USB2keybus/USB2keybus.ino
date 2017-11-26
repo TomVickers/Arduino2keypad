@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include "PiSerial.h"
 #include "KeypadSerial.h"
-#include "F7msg.h"
+#include "USBprotocol.h"
 #include "Volts.h"
 
 #define PRINT_BUF_SIZE   (128)
@@ -41,27 +41,13 @@ void setup()
 
 // ---------------------------------------- main loop ---------------------------------------
 
-// debug (known good F7 message from working alarm)
-static const uint8_t recF7msg[] =
-    { 0xF7, 0x00, 0x00, 0xFF,   // F7, 2 zeros, keypads that should accept mesg
-      0x10, 0xFC, 0x00, 0x00,   // addr4, zone, BYTE1, BYTE2
-      0x28, 0x02, 0x00, 0x00,   // BYTE3, prog, prompt pos, unknown
-      0xC3, 0x4F, 0x4D, 0x4D,   // message 'COMM' (first byte high bit set for backlight on)
-      0x2E, 0x20, 0x46, 0x41,   // message '. FA'
-      0x49, 0x4C, 0x55, 0x52,   // message 'ILUR'
-      0x45, 0x20, 0x20, 0x20,   // message 'E   '
-      0x20, 0x20, 0x20, 0x20,   // message '    '
-      0x20, 0x20, 0x20, 0x20,   // message '    '
-      0x20, 0x20, 0x20, 0x20,   // message '    '
-      0x20, 0x20, 0x20, 0x20,   // message '    '
-      0x72, 0x00, 0x00, 0x00 }; // checksum, 3-bytes of pad
-      
 void loop()
 {
 extern uint8_t dbg1;
 extern uint8_t dbg2;
 
     uint8_t k = 0;
+    bool sendF7now = false;
 
     if (kpSerial.read(&k, 0)) // if we have unhandled chars from keypad, consume them
     {
@@ -74,19 +60,18 @@ extern uint8_t dbg2;
         uint8_t piMsgSize = 0;
         const char * piMsg = piSerial.getMsg(&piMsgSize);
 
-        usbProtocol.parse(piMsg, piMsgSize);
-#if 0
-        if (F7_MSG(piMsg))
+        uint8_t msgType = usbProtocol.parseRecv(piMsg, piMsgSize);
+
+        if (msgType == 0xF7)
         {
-            f7msg.parse(piMsg, piMsgSize);         // parse the recvd message
-            piSerial.write(f7msg.print(pBuf));     // debug: write back mesg received
+            sendF7now = true;  // always update keypad as soon as new F7 message arrives
         }
-        else // unknown console message
+        else if (msgType == 0)
         {
+            // unknown console message
             sprintf(pBuf, "ERR: msg format '%s'\n", piMsg);
             piSerial.write(pBuf);
         }
-#endif
         piSerial.clearCmd();                       // mark command as processed
     }
 
@@ -106,16 +91,16 @@ extern uint8_t dbg2;
 
                 if (msgType == KEYS_MESG)       // if true, key presses were returned for this keypad
                 {
-                    piSerial.write(keyMsg(pBuf, PRINT_BUF_SIZE,
-                        kpSerial.getAddr(kp), kpSerial.getKeyCount(), kpSerial.getKeys()), msgType);
+                    piSerial.write(usbProtocol.keyMsg(pBuf, PRINT_BUF_SIZE,
+                        kpSerial.getAddr(kp), kpSerial.getKeyCount(), kpSerial.getKeys(), msgType));
                 }
                 else if (msgType != NO_MESG)  // we received some other type of message
                 {
-                    piSerial.write(keyMsg(pBuf, PRINT_BUF_SIZE,
-                        kpSerial.getAddr(kp), kpSerial.getRecvMsgLen(), kpSerial.getRecvMsg()), msgType);
+                    piSerial.write(
+                      usbProtocol.keyMsg(pBuf, PRINT_BUF_SIZE, kpSerial.getAddr(kp), kpSerial.getRecvMsgLen(), kpSerial.getRecvMsg(), msgType));
                 }
 
-if (dbg1 != dbg2)
+if (msgType != NO_MESG && dbg1 != dbg2)
 {
   sprintf(pBuf, "DBG: kp%d checksum failed, calc 0x%02x, recv 0x%02x\n", kpSerial.getAddr(kp), dbg1, dbg2);
   piSerial.write(pBuf);
@@ -123,13 +108,12 @@ if (dbg1 != dbg2)
             }
         }
     }
-    else if (ms - lastSendTime > MIN_TX_GAP &&
-             ms -  kpF7time > KP_F7_PERIOD)       // time to send a F7 status message to keypad?
+    else if (sendF7now ||                          // immediate send of F7 message
+            (ms - lastSendTime > MIN_TX_GAP &&
+             ms -  kpF7time > KP_F7_PERIOD))       // time to send a F7 status message to keypad?
     {
         lastSendTime = kpF7time = ms;
-        kpSerial.write(f7msg.get(), F7_MSG_SIZE);
-        //kpSerial.write(recF7msg, F7_MSG_SIZE);
-        // does not look like keypad acks F7 mesg
+        kpSerial.write(usbProtocol.getF7(), usbProtocol.getF7size());
     }
     else if (ms - voltTime > VOLT_PERIOD)    // if time to sample voltage rails
     {
@@ -141,4 +125,3 @@ if (dbg1 != dbg2)
 #endif
     }
 }
-^M

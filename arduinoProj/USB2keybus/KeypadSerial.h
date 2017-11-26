@@ -38,7 +38,6 @@ public:
     bool    getKeyMsg(char * buf, uint8_t bufLen, uint8_t kp);
     void    getMsg(char * buf, uint8_t bufLen);
     uint8_t requestData(uint8_t kp);
-    uint8_t getNumKeypads(void);
 
     // return keypad address for keypad kp
     uint8_t getAddr(uint8_t kp)         { return kp < numKeypads ? keypadAddr[kp] : 0; }
