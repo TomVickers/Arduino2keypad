@@ -11,5 +11,3 @@ The ArduinoProj directory contains the Arduino project named USB2keybus.  I buil
 
 The code is very beta.  It will drive a couple of messages to the 6160 panel, but not much more.  My plan is to use the arduino as a bi-directional parser between standard USB serial at 115200 and keybus protocol at 4800.
 
-Thanks 
-Tom
