@@ -1,0 +1,16 @@
+Notes on Wiring diagrams
+
+Arduino_Keypad_Wiring.jpg
+This image is very similar to a drawing posted on Mark Kimsal's site.  My components are sized for the
+5 volt signaling used by the Arduino Mega.  I also added a 1k pull down resistor on the transmit line
+to the keypad (my circuit would not work without it).
+
+Alarm_Power_Wiring.jpg
+This image documents the circuit I am using to power my alarm project.  I am using a Dell laptop power
+(19v output) and a couple of diodes to drive a picoUPS-100 module.  The picoUPS will trickle charge a 
+connected 12v gell cell battery and continue to provide DC output if the primary power is removed.
+The output of the picoUPS drives a DC-DC converter set for 5 volts.  This will power the Raspberry PI 
+as well as the connected Arduino.  I plan to monitor the input and output power of the picoUPS as well
+as the battery voltage.  This should allow for a clean shutdown of the Raspberry PI if I detect that 
+the battery voltage is getting low.
+
