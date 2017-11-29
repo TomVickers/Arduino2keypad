@@ -1,11 +1,15 @@
 // file USBprotocol.cpp - methods for converting data into plain text strings transferred over USB serial
 
+// if you want to change the format of the messages exchanged with your CPU via the USB serial port, update this class
+
 #include "USBprotocol.h"
 #include "KeypadSerial.h"
 
+// macros to determine if command starts with 'F7' or 'F7A'
 #define F7_MSG_ALT(s)        (*((s)+0) == 'F' && *((s)+1) == '7' && *((s)+2) == 'A')
 #define F7_MSG(s)            (*((s)+0) == 'F' && *((s)+1) == '7')
 
+// init class
 void USBprotocol::init(void)
 {
     count = 0;
@@ -14,11 +18,13 @@ void USBprotocol::init(void)
     initF7(&msgF7[0]);
     initF7(&msgF7[1]);
 
+    // default messages set at start (should be removed in final version)
     //parseF7("F7 z=FC t=0 c=1 r=1 a=0 s=0 p=0 b=1 1=1234567890123456 2=ABCDEFGHIJKLMNOP", 70);
-    parseRecv("F7 z=FC t=0 c=1 r=0 a=1 s=0 p=0 b=1 1=Armed      12:58 2=Welcome Home    ", 70);
+    parseRecv("F7 z=FC t=0 c=1 r=0 a=1 s=0 p=0 b=1 1=Armed Away 12:58 2=Welcome Home    ", 70);
     parseRecv("F7A z=00 t=0 c=1 r=1 a=0 s=0 p=1 b=1 1=Disarmed   12:22 2=Welcome Home    ", 70);
 }
 
+// initialize F7 message struct
 void USBprotocol::initF7(t_MesgF7 * pMsgF7)
 {
     memset((void *)pMsgF7, 0, sizeof(t_MesgF7));
@@ -26,28 +32,32 @@ void USBprotocol::initF7(t_MesgF7 * pMsgF7)
     // constant values
     pMsgF7->type    = 0xF7;
     pMsgF7->keypads = 0xFF;  // send to all keypads
-    pMsgF7->addr4   = 0x00;  // unknown value, my alarm panel is observed to send 0x10
+    pMsgF7->addr4   = 0x00;  // unknown value, my alarm panel is observed to send 0x10, but zero works
     pMsgF7->prog    = 0x00;  // programming mode (not used)
 }
 
+// parse received command string
 uint8_t USBprotocol::parseRecv(const char * msg, const uint8_t len)
 {
-    if (F7_MSG_ALT(msg))
+    if (F7_MSG_ALT(msg)) // an alt F7 command only updates the secondary F7 message
     {
-        return parseF7(msg+4, len-4, &msgF7[1]);
+        return parseF7(msg+4, len-4, &msgF7[1]);  // parse the command after 'F7A '
     }
-    else if (F7_MSG(msg))
+    else if (F7_MSG(msg)) // a primary F7 command updates both F7 messages
     {
-        parseF7(msg+3, len-3, &msgF7[1]);
+        parseF7(msg+3, len-3, &msgF7[1]);         // parse the command after 'F7 '
         return parseF7(msg+3, len-3, &msgF7[0]);
     }
 
-    return 0x0;
+    return 0x0;  // received unknown command
 }
 
-// message from keypad
+// generate message from data received from keypad
 const char * USBprotocol::keyMsg(char * buf, uint8_t bufLen, uint8_t addr, uint8_t len, uint8_t * pData, uint8_t type)
 {
+    // format of message is KEYS_XX[N] key0 key1 ... keyN-1, where XX is keypad number, N is key count
+    // or                   UNK__XX[N] byte0 byte1 .. byteN-1 for unknown message from keypad XX with N bytes
+
     uint8_t idx = 0;
     idx += sprintf(buf+idx, "%s_%2d[%02d] ", type == KEYS_MESG ? "KEYS" : "UNK_", addr, len);
     for (uint8_t i=0; i < len && bufLen - idx > 6; i++)
@@ -58,7 +68,7 @@ const char * USBprotocol::keyMsg(char * buf, uint8_t bufLen, uint8_t addr, uint8
     return (const char *)buf;
 }
 
-// parse F7 message, form is F7[A] z=FC t=0 c=1 r=0 a=0 s=0 p=1 b=1 1=1234567890123456 2=ABCDEFGHIJKLMNOP
+// parse F7 command, form is F7[A] z=FC t=0 c=1 r=0 a=0 s=0 p=1 b=1 1=1234567890123456 2=ABCDEFGHIJKLMNOP
 //   z - zone             (byte arg)
 //   t - tone             (nibble arg)
 //   c - chime            (bool arg)
@@ -115,7 +125,7 @@ uint8_t USBprotocol::parseF7(const char * msg, uint8_t len, t_MesgF7 * pMsgF7)
         case 'b':
             lcd_backlight = GET_BOOL(*(msg+i)); i++;
             break;
-        case '1':
+        case '1':  // line1 arg must occur after 'b' parameter for this code to work
             pMsgF7->line1[0] = (*(msg+i) & 0x7f) | (lcd_backlight ? 0x80 : 0x00); i++;
             for (uint8_t j=1; j < 16; j++)
             {
@@ -140,19 +150,20 @@ uint8_t USBprotocol::parseF7(const char * msg, uint8_t len, t_MesgF7 * pMsgF7)
         pMsgF7->chksum += *(((uint8_t *)pMsgF7) + i);
     }
 
-    pMsgF7->chksum = 0x100 - pMsgF7->chksum;
+    pMsgF7->chksum = 0x100 - pMsgF7->chksum;  // two's compliment
 
     return 0xF7;
 }
 
+// returned mesg always alternates between 2 stored messages (which may be the same)
 const uint8_t * USBprotocol::getF7(void)
 { 
-    return (const uint8_t *)&(msgF7[count++ & 0x1]);  // returned mesg alternates between 2 stored messages (which may be the same)
+    return (const uint8_t *)&(msgF7[count++ & 0x1]);
 }
 
 
 #if 0
-// debug: print message struct into buf
+// debug: print message struct into buf (broken, needs to be updated)
 const char * USBprotocol::printF7(char * buf)
 {
     uint8_t idx = 0;

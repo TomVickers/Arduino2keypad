@@ -1,4 +1,4 @@
-// file KeypadSerial.h - Software serial class for handling com with alarm keypad
+// file KeypadSerial.h - a class for handling com with alarm keypad
 
 #pragma once
 
@@ -23,7 +23,7 @@ enum {
     POLL_STATE_1 = 1,  // sent first  0x00
     POLL_STATE_2 = 2,  // send second 0x00
     POLL_STATE_3 = 3,  // sent third  0x00
-    POLL_STATE_4 = 4   // read bitmask keypad
+    POLL_STATE_4 = 4   // read bitmask from keypad
 };
 
 class KeypadSerial
@@ -35,7 +35,6 @@ public:
     bool    poll(void);
     void    write(uint8_t * msg, uint8_t size);
     bool    read(uint8_t * c, uint32_t timeout);
-    bool    getKeyMsg(char * buf, uint8_t bufLen, uint8_t kp);
     void    getMsg(char * buf, uint8_t bufLen);
     uint8_t requestData(uint8_t kp);
 
@@ -45,7 +44,7 @@ public:
     // return the number of keypads that responded to the poll request
     uint8_t getNumKeypads(void)         { return numKeypads; }
 
-    // return the number of keys returned by keypad kp
+    // return the number of keys returned by keypad
     uint8_t getKeyCount(void)           { return recvMsgLen > 3 ? recvMsgLen - 3 : 0; }
 
     // return pointer to array of keys returned by keypad

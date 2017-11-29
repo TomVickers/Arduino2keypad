@@ -1,6 +1,6 @@
 // file USBprotocol.h - class describing serial protocol over USB
 
-// if you want to change how your CPU communicates with the Arduino, update this class
+// if you want to change the format of the messages exchanged with your CPU via the USB serial port, update this class
 
 #pragma once
 
@@ -22,7 +22,7 @@ public:
     const uint8_t   getF7size(void) { return F7_MSG_SIZE; }
 
 private:
-    uint8_t count;
+    uint8_t count;      // incremented each time getF7 is called
     t_MesgF7 msgF7[2];  // 2 F7 mesgs, primary and alternate
 
     void initF7(t_MesgF7 * pMsgF7);

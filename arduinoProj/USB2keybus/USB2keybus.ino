@@ -43,11 +43,7 @@ void setup()
 
 void loop()
 {
-extern uint8_t dbg1;
-extern uint8_t dbg2;
-
     uint8_t k = 0;
-    bool sendF7now = false;
 
     if (kpSerial.read(&k, 0)) // if we have unhandled chars from keypad, consume them
     {
@@ -64,7 +60,7 @@ extern uint8_t dbg2;
 
         if (msgType == 0xF7)
         {
-            sendF7now = true;  // always update keypad as soon as new F7 message arrives
+            kpF7time = 0;  // always update keypad as soon as new F7 message arrives
         }
         else if (msgType == 0)
         {
@@ -77,11 +73,12 @@ extern uint8_t dbg2;
 
     uint32_t ms = millis();  // milliseconds since start of run
 
-    if (ms - lastSendTime > MIN_TX_GAP &&
-        ms - kpPollTime > KP_POLL_PERIOD)    // time to poll keypad?
+    if (ms - lastSendTime > MIN_TX_GAP && ms - kpPollTime > KP_POLL_PERIOD)    
     {
+        // time to poll keypad
         lastSendTime = kpPollTime = ms;
-        if (kpSerial.poll())                       // poll for keypads
+
+        if (kpSerial.poll())                    // poll for keypads
         {
             for (uint8_t kp=0; kp < kpSerial.getNumKeypads(); kp++) // loop over each responding keypad
             {
@@ -96,22 +93,15 @@ extern uint8_t dbg2;
                 }
                 else if (msgType != NO_MESG)  // we received some other type of message
                 {
-                    piSerial.write(
-                      usbProtocol.keyMsg(pBuf, PRINT_BUF_SIZE, kpSerial.getAddr(kp), kpSerial.getRecvMsgLen(), kpSerial.getRecvMsg(), msgType));
+                    piSerial.write(usbProtocol.keyMsg(pBuf, PRINT_BUF_SIZE, 
+                        kpSerial.getAddr(kp), kpSerial.getRecvMsgLen(), kpSerial.getRecvMsg(), msgType));
                 }
-
-if (msgType != NO_MESG && dbg1 != dbg2)
-{
-  sprintf(pBuf, "DBG: kp%d checksum failed, calc 0x%02x, recv 0x%02x\n", kpSerial.getAddr(kp), dbg1, dbg2);
-  piSerial.write(pBuf);
-}
             }
         }
     }
-    else if (sendF7now ||                          // immediate send of F7 message
-            (ms - lastSendTime > MIN_TX_GAP &&
-             ms -  kpF7time > KP_F7_PERIOD))       // time to send a F7 status message to keypad?
+    else if (ms - lastSendTime > MIN_TX_GAP && ms -  kpF7time > KP_F7_PERIOD)
     {
+        // time to send a F7 status message to keypad
         lastSendTime = kpF7time = ms;
         kpSerial.write(usbProtocol.getF7(), usbProtocol.getF7size());
     }

@@ -15,7 +15,7 @@ void PiSerial::init(void)
 
     // init USB serial connection to Raspberry PI
     Serial.begin(PI_SERIAL_BAUD);  
-    Serial.println("\nkpSerial initialized");
+    Serial.println("\nUSB2keybus initialized");
 }
 
 void PiSerial::write(const char * buf)

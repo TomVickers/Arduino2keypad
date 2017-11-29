@@ -1,17 +1,14 @@
-// file KeypadSerial.cpp - Software serial class for handling com with alarm keypad
+// file KeypadSerial.cpp - a class for handling com with alarm keypad
 
 #include "KeypadSerial.h"
 
-// Keypad communication appears to be mostly 8E1 @4800, but some special handling is required
+// Keypad communication appears to be mostly inverted 8E2@4800, but some special handling is required
 // Check the comments below for details.
 
 #define ONE_BIT_DELAY              delay_us(208)  // ~one bit delay @4800 baud
 #define ONE_BYTE_DELAY             delay_us(2030) // ~one byte delay @4800 baud
 #define DELAY_BETWEEN_POLL_WRITES  delay_us(1015) // measured delay between polling writes
 #define LOW_BEFORE_WRITE_DELAY     delay_us(4060) // time to drop transmit before regular writes
-
-uint8_t dbg1 = 0;  // FIXME - debug, remove me
-uint8_t dbg2 = 0;  // FIXME - debug, remove me
 
 KeypadSerial * KeypadSerial::pKeypadSerial = NULL;  // pointer to class for ISR
 
@@ -127,7 +124,7 @@ void KeypadSerial::write(uint8_t * msg, uint8_t size)
     for (uint8_t i=0; i < size; i++)
     {
         softSerial.write(*(msg + i));
-        ONE_BIT_DELAY;
+        ONE_BIT_DELAY;                  // extra stop bit delay makes output 8E2
     }
 
     afterWrite();   // restore transmit line level
@@ -164,9 +161,9 @@ uint8_t KeypadSerial::requestData(uint8_t kp)
 
     beforeWrite();                     // set transmit low before we start writing
     softSerial.write(0xF6);            // tell keypad to send data
-    ONE_BIT_DELAY;                     // one bit delay
+    ONE_BIT_DELAY;                     // extra stop bit delay
     softSerial.write(keypadAddr[kp]);  // address keypad we want to hear from 
-    ONE_BIT_DELAY;                     // one bit delay
+    ONE_BIT_DELAY;                     // extra stop bit delay
     afterWrite();                      // restore transmit line level
 
     uint8_t calcChksum = 0;
@@ -210,7 +207,7 @@ uint8_t KeypadSerial::requestData(uint8_t kp)
             msgType = readBuf[1];
         }
 
-        calcChksum = 0x100 - calcChksum;
+        calcChksum = 0x100 - calcChksum; // two's compliment
         
         ONE_BIT_DELAY;
         ONE_BIT_DELAY;  // appears that a two bit delay is needed before dropping transmit for ack
@@ -220,14 +217,9 @@ uint8_t KeypadSerial::requestData(uint8_t kp)
         {
             beforeWrite();                  // set transmit low before we start writing
             softSerial.write(readBuf[0]);   // send keypad mesg ack
-            ONE_BIT_DELAY;
+            ONE_BIT_DELAY;                  // extra stop bit
             afterWrite();                   // restore transmit line level
             return msgType;
-        }
-        else
-        {
-dbg1 = calcChksum;
-dbg2 = readBuf[recvMsgLen-1];
         }
     }
     return NO_MESG;  // no message recv for this keypad, or bad checksum
@@ -235,17 +227,18 @@ dbg2 = readBuf[recvMsgLen-1];
 
 // Pin Change INTerrupts ---------------------------------------------------------------------------
 
+// this pin change ISR replaces the one normally used by SoftwareSerial
 inline void KeypadSerial::pinChangeIsr(void)  // declared static
 {
-    if (pKeypadSerial->softSerial.rx_pin_read()) // low->high change (high start bit)
+    if (pKeypadSerial->softSerial.rx_pin_read()) // low->high pin change (high start bit)
     {
         if (pKeypadSerial->pollState == NOT_POLLING || pKeypadSerial->pollState == POLL_STATE_3)
         {
-            pKeypadSerial->softSerial.recv();  // recv byte
+            pKeypadSerial->softSerial.recv();  // start recv of byte
         }
         if (pKeypadSerial->pollState != NOT_POLLING) // we are currently polling keypad
         {
-            pKeypadSerial->pollState++;  // bump pollState when pin changes from low to high
+            pKeypadSerial->pollState++;  // while polling, bump pollState when pin changes from low to high
         }
     }
     else
