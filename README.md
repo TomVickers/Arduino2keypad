@@ -9,5 +9,5 @@ The ArduinoProj directory contains the Arduino project named USB2keybus.  I buil
 
 --------------- NOTE: Beta code ------------------------
 
-The code is a work in progress.  It appears to be stable.  I am currently using it as a bi-directional parser between a Raspberry Pi 3 USB serial port at 115200 baud and a 6160 keypad.
+This code is a work in progress.  A few features are not yet complete, but it appears to be stable.  I am currently using it as a bi-directional parser between a Raspberry Pi 3 USB serial port at 115200 baud and a 6160 keypad.
 
