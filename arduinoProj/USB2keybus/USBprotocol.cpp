@@ -13,15 +13,16 @@
 void USBprotocol::init(void)
 {
     count = 0;
+    altMsgActive = false;
     
     // init F7 message structs
     initF7(&msgF7[0]);
     initF7(&msgF7[1]);
 
     // default messages set at start (should be removed in final version)
-    //parseF7("F7 z=FC t=0 c=1 r=1 a=0 s=0 p=0 b=1 1=1234567890123456 2=ABCDEFGHIJKLMNOP", 70);
-    parseRecv("F7 z=FC t=0 c=1 r=0 a=1 s=0 p=0 b=1 1=Armed Away 12:58 2=Welcome Home    ", 70);
-    parseRecv("F7A z=00 t=0 c=1 r=1 a=0 s=0 p=1 b=1 1=Disarmed   12:22 2=Welcome Home    ", 70);
+    //parseF7("F7 z=FC t=0 c=1 r=1 a=0 s=0 p=0 b=1 1=1234567890123456 2=ABCDEFGHIJKLMNOP", 73);
+    //parseRecv("F7A z=00 t=0 c=1 r=1 a=0 s=0 p=1 b=1 1=Disarmed   12:22 2=Welcome Home    ", 73);
+    parseRecv("F7 z=00 t=0 c=1 r=1 a=1 s=0 p=0 b=1 1=Arduino Init     2=Completed       ", 73);
 }
 
 // initialize F7 message struct
@@ -39,16 +40,17 @@ void USBprotocol::initF7(t_MesgF7 * pMsgF7)
 // parse received command string
 uint8_t USBprotocol::parseRecv(const char * msg, const uint8_t len)
 {
-    if (F7_MSG_ALT(msg)) // an alt F7 command only updates the secondary F7 message
+    if (len > 4 && F7_MSG_ALT(msg)) // an alt F7 command only updates the secondary F7 message
     {
+        altMsgActive = true;
         return parseF7(msg+4, len-4, &msgF7[1]);  // parse the command after 'F7A '
     }
-    else if (F7_MSG(msg)) // a primary F7 command updates both F7 messages
+    else if (len > 4 && F7_MSG(msg)) // a primary F7 command sets altMsg false, so send F7A msg second if needed
     {
-        parseF7(msg+3, len-3, &msgF7[1]);         // parse the command after 'F7 '
-        return parseF7(msg+3, len-3, &msgF7[0]);
+        count = 0;  // zero count so primary F7 msg is the next one displayed
+        altMsgActive = false;
+        return parseF7(msg+3, len-3, &msgF7[0]);  // parse the command after 'F7 '
     }
-
     return 0x0;  // received unknown command
 }
 
@@ -96,50 +98,55 @@ uint8_t USBprotocol::parseF7(const char * msg, uint8_t len, t_MesgF7 * pMsgF7)
 
     for (uint8_t i=0; i < len && *(msg+i) != '\0'; i++)  // msg pointer starts after 'F7 ' or 'F7A '
     {
-        char parm = *(msg+i);
-        i += 2;  // move i past parm and '=' 
-
-        switch (parm)
+        if (*(msg+i) != ' ')  // skip over spaces
         {
-        case 'z':
-            pMsgF7->zone = GET_BYTE(*(msg+i), *(msg+i+1)); i += 2;
-            break;
-        case 't':
-            pMsgF7->byte1 = GET_NIBBLE(*(msg+i)); i++;
-            break;
-        case 'c':
-            pMsgF7->byte3 = SET_CHIME(pMsgF7->byte3, GET_BOOL(*(msg+i))); i++;
-            break;
-        case 'r':
-            pMsgF7->byte2 = SET_READY(pMsgF7->byte2, GET_BOOL(*(msg+i))); i++;
-            break;
-        case 'a':
-            pMsgF7->byte3 = SET_ARMED_AWAY(pMsgF7->byte3, GET_BOOL(*(msg+i))); i++;
-            break;
-        case 's':
-            pMsgF7->byte2 = SET_ARMED_STAY(pMsgF7->byte2, GET_BOOL(*(msg+i))); i++;
-            break;
-        case 'p':
-            pMsgF7->byte3 = SET_POWER(pMsgF7->byte3, GET_BOOL(*(msg+i))); i++;
-            break;
-        case 'b':
-            lcd_backlight = GET_BOOL(*(msg+i)); i++;
-            break;
-        case '1':  // line1 arg must occur after 'b' parameter for this code to work
-            pMsgF7->line1[0] = (*(msg+i) & 0x7f) | (lcd_backlight ? 0x80 : 0x00); i++;
-            for (uint8_t j=1; j < 16; j++)
+            char parm = *(msg+i);
+            i += 2;  // move past parm and '=', msg+i now points at arg 
+
+            switch (parm)
             {
-                pMsgF7->line1[j] = *(msg+i) & 0x7f; i++;
+            case 'z':
+                pMsgF7->zone = GET_BYTE(*(msg+i), *(msg+i+1)); i += 2;
+                break;
+            case 't':
+                pMsgF7->byte1 = GET_NIBBLE(*(msg+i)); i++;
+                break;
+            case 'c':
+                pMsgF7->byte3 = SET_CHIME(pMsgF7->byte3, GET_BOOL(*(msg+i))); i++;
+                break;
+            case 'r':
+                pMsgF7->byte2 = SET_READY(pMsgF7->byte2, GET_BOOL(*(msg+i))); i++;
+                break;
+            case 'a':
+                pMsgF7->byte3 = SET_ARMED_AWAY(pMsgF7->byte3, GET_BOOL(*(msg+i))); i++;
+                break;
+            case 's':
+                pMsgF7->byte2 = SET_ARMED_STAY(pMsgF7->byte2, GET_BOOL(*(msg+i))); i++;
+                break;
+            case 'p':
+                pMsgF7->byte3 = SET_POWER(pMsgF7->byte3, GET_BOOL(*(msg+i))); i++;
+                break;
+            case 'b':
+                lcd_backlight = GET_BOOL(*(msg+i)); i++;
+                break;
+            case '1':  // line1 arg must occur after 'b' parameter for this code to work
+                for (uint8_t j=0; j < 16; j++)
+                {
+                    pMsgF7->line1[j] = *(msg+i) & 0x7f; 
+                    i++;
+                }
+                pMsgF7->line1[0] |= lcd_backlight ? 0x80 : 0x00;  // or in backlight bit
+                break;
+            case '2':
+                for (uint8_t j=0; j < 16; j++)
+                {
+                    pMsgF7->line2[j] = *(msg+i) & 0x7f; 
+                    i++;
+                }
+                break;
+            default:
+                break;
             }
-            break;
-        case '2':
-            for (uint8_t j=0; j < 16; j++)
-            {
-                pMsgF7->line2[j] = *(msg+i) & 0x7f; i++;
-            }
-            break;
-        default:
-            break;
         }
     }
 
@@ -158,7 +165,10 @@ uint8_t USBprotocol::parseF7(const char * msg, uint8_t len, t_MesgF7 * pMsgF7)
 // returned mesg always alternates between 2 stored messages (which may be the same)
 const uint8_t * USBprotocol::getF7(void)
 { 
-    return (const uint8_t *)&(msgF7[count++ & 0x1]);
+    if (altMsgActive)
+        return (const uint8_t *)&(msgF7[count++ & 0x1]);
+    else
+        return (const uint8_t *)&(msgF7[0]);
 }
 
 

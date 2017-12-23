@@ -2,12 +2,13 @@
 
 #pragma once
 
+#define SERIAL_RX_BUFFER_SIZE  256    // increase default size for arduino serial recv buffer
+
 #include <Arduino.h>
 
-// raspberry PI serial config
-#define PI_SERIAL_BAUD  115200
+#define PI_SERIAL_BAUD      115200   // baud rate for USB serial port
 
-static const uint8_t PI_SERIAL_MSG_BUF_SIZE = 80;  // max length of recv'd msg
+static const uint8_t PI_SERIAL_MSG_BUF_SIZE = 128;  // max length of recv'd msg
 
 class PiSerial
 {

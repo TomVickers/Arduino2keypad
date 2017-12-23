@@ -22,8 +22,9 @@ public:
     const uint8_t   getF7size(void) { return F7_MSG_SIZE; }
 
 private:
-    uint8_t count;      // incremented each time getF7 is called
-    t_MesgF7 msgF7[2];  // 2 F7 mesgs, primary and alternate
+    bool    altMsgActive; // if true, altenate between primary and alternate messages
+    uint8_t count;        // incremented each time getF7 is called
+    t_MesgF7 msgF7[2];    // 2 F7 mesgs, primary and alternate
 
     void initF7(t_MesgF7 * pMsgF7);
     uint8_t parseF7(const char * msg, uint8_t len, t_MesgF7 * pMsgF7);
