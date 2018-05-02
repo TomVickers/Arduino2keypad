@@ -1,7 +1,7 @@
 // USB2keybus.ino - implement adapter between alarm processor serial port and keybus protocol keypad
 
+#include "PiSerial.h"  // declare first to define SERIAL_RX_BUFFER_SIZE
 #include <Arduino.h>
-#include "PiSerial.h"
 #include "KeypadSerial.h"
 #include "USBprotocol.h"
 #include "Volts.h"
@@ -31,7 +31,7 @@ uint8_t  numKeyPads;     // number of keypads that responded to poll
 
 // ------------------------------------------ setup -----------------------------------------
 
-void setup()
+void setup(void)
 {
     usbProtocol.init();     // init class
     piSerial.init();        // init class
@@ -52,7 +52,7 @@ void setup()
 
 // ---------------------------------------- main loop ---------------------------------------
 
-void loop()
+void loop(void)
 {
     uint8_t k = 0;
 
@@ -76,7 +76,7 @@ void loop()
         else if (msgType == 0)
         {
             // unknown console message
-            sprintf(pBuf, "ERROR: bad msg format '%s'\n", piMsg);
+            sprintf(pBuf, "ERR_FMT: garble/bad msg format '%s'\n", piMsg);
             piSerial.write(pBuf);
         }
         piSerial.clearCmd();                       // mark command as processed
@@ -147,3 +147,4 @@ void loop()
         }
     }
 }
+

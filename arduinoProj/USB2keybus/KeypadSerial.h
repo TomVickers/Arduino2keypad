@@ -33,7 +33,7 @@ public:
 
     void    init(void);              // init the class
     bool    poll(void);
-    void    write(uint8_t * msg, uint8_t size);
+    void    write(const uint8_t * msg, const uint8_t size);
     bool    read(uint8_t * c, uint32_t timeout);
     void    getMsg(char * buf, uint8_t bufLen);
     uint8_t requestData(uint8_t kp);

@@ -22,6 +22,7 @@
 #define GET_NIBBLE(c)        ((uint8_t)(H2B(c)))
 #define GET_BOOL(b)          ((b) == '1' ? 1 : 0)
 
+#define LCD_LINE_LEN         (16)
 #define F7_MSG_SIZE          (48)
 
 #pragma pack(push,1)  // mesg struct needs 1 byte packing
@@ -39,8 +40,8 @@ typedef struct {
     uint8_t prog;
     uint8_t prompt;
     uint8_t pad1;
-    char    line1[16];
-    char    line2[16];
+    char    line1[LCD_LINE_LEN];
+    char    line2[LCD_LINE_LEN];
     uint8_t chksum;
     uint8_t unused[3];
 } t_MesgF7;               // F7 mesg is 48 bytes

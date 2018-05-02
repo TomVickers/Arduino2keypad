@@ -39,7 +39,9 @@ bool PiSerial::read(void)
                 }
                 else
                 {
-                    Serial.println("ERROR: garbled command\n");
+                    Serial.println("ERR_FMT: garbled command: ");
+                    Serial.println(msgBuf);
+                    Serial.println("\n");
                     clearCmd();
                 }
             }
@@ -52,7 +54,7 @@ bool PiSerial::read(void)
 
     if (bufIdx >= PI_SERIAL_MSG_BUF_SIZE-1)
     {
-        Serial.println("ERROR: buf overflow\n");
+        Serial.println("ERR_OFL: buf overflow\n");
         clearCmd();
     }
     else

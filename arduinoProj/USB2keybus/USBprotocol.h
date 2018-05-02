@@ -19,7 +19,7 @@ public:
     //const char * printF7(char * buf);
 
     const uint8_t * getF7(void);
-    const uint8_t   getF7size(void) { return F7_MSG_SIZE; }
+    const uint8_t   getF7size(void) { return (const uint8_t)F7_MSG_SIZE; }
 
 private:
     bool    altMsgActive; // if true, altenate between primary and alternate messages

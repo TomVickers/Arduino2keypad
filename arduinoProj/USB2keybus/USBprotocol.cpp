@@ -94,7 +94,12 @@ const char * USBprotocol::keyMsg(char * buf, uint8_t bufLen, uint8_t addr, uint8
 
 uint8_t USBprotocol::parseF7(const char * msg, uint8_t len, t_MesgF7 * pMsgF7)
 {   
+    bool success = true;
     bool lcd_backlight = false;
+
+    t_MesgF7 newF7;
+    t_MesgF7 * pNewF7 = &newF7;
+    memcpy(pNewF7, pMsgF7, sizeof(t_MesgF7)); // copy existing F7 mesg struct
 
     for (uint8_t i=0; i < len && *(msg+i) != '\0'; i++)  // msg pointer starts after 'F7 ' or 'F7A '
     {
@@ -106,60 +111,69 @@ uint8_t USBprotocol::parseF7(const char * msg, uint8_t len, t_MesgF7 * pMsgF7)
             switch (parm)
             {
             case 'z':
-                pMsgF7->zone = GET_BYTE(*(msg+i), *(msg+i+1)); i += 2;
+                pNewF7->zone = GET_BYTE(*(msg+i), *(msg+i+1)); i += 2;
                 break;
             case 't':
-                pMsgF7->byte1 = GET_NIBBLE(*(msg+i)); i++;
+                pNewF7->byte1 = GET_NIBBLE(*(msg+i)); i++;
                 break;
             case 'c':
-                pMsgF7->byte3 = SET_CHIME(pMsgF7->byte3, GET_BOOL(*(msg+i))); i++;
+                pNewF7->byte3 = SET_CHIME(pNewF7->byte3, GET_BOOL(*(msg+i))); i++;
                 break;
             case 'r':
-                pMsgF7->byte2 = SET_READY(pMsgF7->byte2, GET_BOOL(*(msg+i))); i++;
+                pNewF7->byte2 = SET_READY(pNewF7->byte2, GET_BOOL(*(msg+i))); i++;
                 break;
             case 'a':
-                pMsgF7->byte3 = SET_ARMED_AWAY(pMsgF7->byte3, GET_BOOL(*(msg+i))); i++;
+                pNewF7->byte3 = SET_ARMED_AWAY(pNewF7->byte3, GET_BOOL(*(msg+i))); i++;
                 break;
             case 's':
-                pMsgF7->byte2 = SET_ARMED_STAY(pMsgF7->byte2, GET_BOOL(*(msg+i))); i++;
+                pNewF7->byte2 = SET_ARMED_STAY(pNewF7->byte2, GET_BOOL(*(msg+i))); i++;
                 break;
             case 'p':
-                pMsgF7->byte3 = SET_POWER(pMsgF7->byte3, GET_BOOL(*(msg+i))); i++;
+                pNewF7->byte3 = SET_POWER(pNewF7->byte3, GET_BOOL(*(msg+i))); i++;
                 break;
             case 'b':
                 lcd_backlight = GET_BOOL(*(msg+i)); i++;
                 break;
             case '1':  // line1 arg must occur after 'b' parameter for this code to work
-                for (uint8_t j=0; j < 16; j++)
+                memset(pNewF7->line1, 0, LCD_LINE_LEN);
+                for (uint8_t j=0; j < LCD_LINE_LEN && i < len; j++)
                 {
-                    pMsgF7->line1[j] = *(msg+i) & 0x7f; 
+                    pNewF7->line1[j] = *(msg+i) & 0x7f; 
                     i++;
                 }
-                pMsgF7->line1[0] |= lcd_backlight ? 0x80 : 0x00;  // or in backlight bit
+                pNewF7->line1[0] |= lcd_backlight ? 0x80 : 0x00;  // or in backlight bit
                 break;
             case '2':
-                for (uint8_t j=0; j < 16; j++)
+                memset(pNewF7->line2, 0, LCD_LINE_LEN);
+                for (uint8_t j=0; j < LCD_LINE_LEN && i < len; j++)
                 {
-                    pMsgF7->line2[j] = *(msg+i) & 0x7f; 
+                    pNewF7->line2[j] = *(msg+i) & 0x7f; 
                     i++;
                 }
                 break;
             default:
+                success = false;
                 break;
             }
         }
     }
 
-    pMsgF7->chksum = 0;
-
-    for (uint8_t i=0; i < 44; i++)
+    if (success)
     {
-        pMsgF7->chksum += *(((uint8_t *)pMsgF7) + i);
+        memcpy(pMsgF7, pNewF7, sizeof(t_MesgF7)); // replace existing F7 mesg with updated version
+
+        pMsgF7->chksum = 0;
+
+        for (uint8_t i=0; i < 44; i++)
+        {
+            pMsgF7->chksum += *(((uint8_t *)pMsgF7) + i);
+        }
+
+        pMsgF7->chksum = 0x100 - pMsgF7->chksum;  // two's compliment
+
+        return 0xF7;
     }
-
-    pMsgF7->chksum = 0x100 - pMsgF7->chksum;  // two's compliment
-
-    return 0xF7;
+    return 0;  // failed to parse message
 }
 
 // returned mesg always alternates between 2 stored messages (which may be the same)

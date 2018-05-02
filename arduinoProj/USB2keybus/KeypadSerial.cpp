@@ -117,7 +117,7 @@ bool KeypadSerial::poll(void)
 }
 
 // write sequence of bytes to keypad
-void KeypadSerial::write(uint8_t * msg, uint8_t size)
+void KeypadSerial::write(const uint8_t * msg, const uint8_t size)
 {
     beforeWrite();  // set transmit low before we start writing (about 4ms)
 
