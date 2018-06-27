@@ -1,9 +1,13 @@
 // file USBprotocol.cpp - methods for converting data into plain text strings transferred over USB serial
 
-// if you want to change the format of the messages exchanged with your CPU via the USB serial port, update this class
+// if you want to change the format of the messages exchanged with your CPU via the USB serial port, update 
+// this class
 
 #include "USBprotocol.h"
 #include "KeypadSerial.h"
+
+// when arduino code inits, use these initial keypad values
+#define INIT_MSG  "F7 z=00 t=0 c=1 r=1 a=1 s=0 p=0 b=1 1=Arduino Init     2=Completed  v1.01"
 
 // macros to determine if command starts with 'F7' or 'F7A'
 #define F7_MSG_ALT(s)        (*((s)+0) == 'F' && *((s)+1) == '7' && *((s)+2) == 'A')
@@ -19,10 +23,7 @@ void USBprotocol::init(void)
     initF7(&msgF7[0]);
     initF7(&msgF7[1]);
 
-    // default messages set at start (should be removed in final version)
-    //parseF7("F7 z=FC t=0 c=1 r=1 a=0 s=0 p=0 b=1 1=1234567890123456 2=ABCDEFGHIJKLMNOP", 73);
-    //parseRecv("F7A z=00 t=0 c=1 r=1 a=0 s=0 p=1 b=1 1=Disarmed   12:22 2=Welcome Home    ", 73);
-    parseRecv("F7 z=00 t=0 c=1 r=1 a=1 s=0 p=0 b=1 1=Arduino Init     2=Completed       ", 73);
+    parseRecv(INIT_MSG, strlen(INIT_MSG));
 }
 
 // initialize F7 message struct
@@ -35,6 +36,7 @@ void USBprotocol::initF7(t_MesgF7 * pMsgF7)
     pMsgF7->keypads = 0xFF;  // send to all keypads
     pMsgF7->addr4   = 0x00;  // unknown value, my alarm panel is observed to send 0x10, but zero works
     pMsgF7->prog    = 0x00;  // programming mode (not used)
+    pMsgF7->zone    = 0xFC;  // my keypad may need this to prevent fast beep problem?
 }
 
 // parse received command string
