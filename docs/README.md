@@ -1,6 +1,7 @@
 Notes on Wiring diagrams
 
 Arduino_Keypad_Wiring.jpg
+
 This image is very similar to a drawing posted on Mark Kimsal's site.  My components are sized for the
 5 volt signaling used by the Arduino Mega.  I also added a 1k pull down resistor on the transmit line
 to the keypad (my circuit would not work without it).
@@ -15,6 +16,10 @@ This will power the Raspberry PI as well as the connected Arduino.  As a future 
 power of the picoUPS as well as the battery voltage via analog inputs on the Arduino.  This should allow 
 for a clean shutdown of the Raspberry PI if I detect that the input power is off and the battery voltage 
 is getting low.
+
+perfboard.jpg
+
+This image shows how I arranged the components to build the hat for the Arudino.
 
 rpi-alarm-1.jpg
 
